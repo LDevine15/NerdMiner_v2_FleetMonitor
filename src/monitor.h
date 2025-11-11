@@ -35,6 +35,11 @@
 #define getPublicPool "https://public-pool.io:40557/api/client/" // +btcString
 #define UPDATE_POOL_min   1
 
+// Bitaxe Swarm API (set your Python server IP)
+// Example: "http://192.168.1.100:5001/swarm"
+#define getBitaxeSwarm "http://192.168.1.64:5001/swarm"  // Your Mac IP
+#define UPDATE_SWARM_sec  10  // Update every 10 seconds
+
 #define NEXT_HALVING_EVENT 1050000 //840000
 #define HALVING_BLOCKS 210000
 
@@ -123,12 +128,53 @@ typedef struct{
   String bestDifficulty;  // Your miners best difficulty
 }pool_data;
 
+// Candlestick data for BTC chart
+typedef struct {
+  float open;
+  float high;
+  float low;
+  float close;
+  unsigned long timestamp;
+} candle_data;
+
+typedef struct {
+  candle_data candles[24];  // 24 hourly candles for 24h chart
+  int count;                 // Number of valid candles
+  float min_price;           // Min price for scaling
+  float max_price;           // Max price for scaling
+} btc_chart_data;
+
+// Bitaxe swarm data from Python API
+typedef struct {
+  String name;
+  bool online;
+  float hashrate;     // GH/s
+  float power;        // W
+  float efficiency;   // J/TH
+  float asic_temp;    // °C
+  float vreg_temp;    // °C
+} bitaxe_miner;
+
+typedef struct {
+  float total_hashrate;    // GH/s
+  float total_power;       // W
+  float avg_efficiency;    // J/TH
+  int active_count;
+  int total_count;
+  bitaxe_miner miners[8];  // Support up to 8 miners
+  int miner_count;
+  bool data_valid;
+} swarm_data;
+
 void setup_monitor(void);
 
 mining_data getMiningData(unsigned long mElapsed);
 clock_data getClockData(unsigned long mElapsed);
 coin_data getCoinData(unsigned long mElapsed);
 pool_data getPoolData(void);
+btc_chart_data getBTCChartData(void);  // Get 24h candlestick data from Binance
+swarm_data getBitaxeSwarmData(void);   // Get swarm data from Python API
+String getBTCprice(void);              // Get current BTC price
 
 clock_data_t getClockData_t(unsigned long mElapsed);
 String getPoolAPIUrl(void);

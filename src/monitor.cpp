@@ -199,6 +199,164 @@ String getBTCprice(void){
   return String(price_buffer);
 }
 
+// Binance API for candlestick data
+#define getBinanceKlines "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=24"
+#define UPDATE_CHART_min 5  // Update chart every 5 minutes
+
+unsigned long mChartUpdate = 0;
+btc_chart_data chartData;
+
+btc_chart_data getBTCChartData(void) {
+
+    // Update chart data every 5 minutes
+    if((mChartUpdate == 0) || (millis() - mChartUpdate > UPDATE_CHART_min * 60 * 1000)){
+
+        if (WiFi.status() != WL_CONNECTED) {
+            return chartData;  // Return cached data if offline
+        }
+
+        HTTPClient http;
+        http.setTimeout(15000);  // Longer timeout for larger payload
+
+        try {
+            http.begin(getBinanceKlines);
+            int httpCode = http.GET();
+
+            if (httpCode == HTTP_CODE_OK) {
+                String payload = http.getString();
+
+                // Binance returns array of arrays
+                // [timestamp, open, high, low, close, volume, ...]
+                DynamicJsonDocument doc(8192);  // Need larger buffer for 24 candles
+                deserializeJson(doc, payload);
+
+                chartData.count = 0;
+                chartData.min_price = 999999;
+                chartData.max_price = 0;
+
+                // Parse up to 24 candles
+                JsonArray array = doc.as<JsonArray>();
+                int i = 0;
+                for (JsonArray candle : array) {
+                    if (i >= 24) break;
+
+                    chartData.candles[i].timestamp = candle[0];
+                    chartData.candles[i].open = candle[1].as<float>();
+                    chartData.candles[i].high = candle[2].as<float>();
+                    chartData.candles[i].low = candle[3].as<float>();
+                    chartData.candles[i].close = candle[4].as<float>();
+
+                    // Track min/max for scaling
+                    if (chartData.candles[i].low < chartData.min_price) {
+                        chartData.min_price = chartData.candles[i].low;
+                    }
+                    if (chartData.candles[i].high > chartData.max_price) {
+                        chartData.max_price = chartData.candles[i].high;
+                    }
+
+                    i++;
+                }
+
+                chartData.count = i;
+
+                Serial.printf("BTC Chart: %d candles, range $%.0f-$%.0f\n",
+                              chartData.count, chartData.min_price, chartData.max_price);
+
+                doc.clear();
+                mChartUpdate = millis();
+            } else {
+                Serial.printf("Binance API error: %d\n", httpCode);
+            }
+
+            http.end();
+        } catch(...) {
+            Serial.println("BTC chart HTTP error caught");
+            http.end();
+        }
+    }
+
+    return chartData;
+}
+
+// Bitaxe Swarm API - fetch data from Python server
+unsigned long mSwarmUpdate = 0;
+swarm_data swarmData;
+
+swarm_data getBitaxeSwarmData(void) {
+
+    // Update swarm data every 10 seconds
+    if((mSwarmUpdate == 0) || (millis() - mSwarmUpdate > UPDATE_SWARM_sec * 1000)){
+
+        if (WiFi.status() != WL_CONNECTED) {
+            swarmData.data_valid = false;
+            return swarmData;  // Return cached data if offline
+        }
+
+        HTTPClient http;
+        http.setTimeout(5000);
+
+        try {
+            http.begin(getBitaxeSwarm);
+            int httpCode = http.GET();
+
+            if (httpCode == HTTP_CODE_OK) {
+                String payload = http.getString();
+
+                StaticJsonDocument<4096> doc;
+                deserializeJson(doc, payload);
+
+                // Parse swarm totals
+                swarmData.total_hashrate = doc["total_hashrate"];
+                swarmData.total_power = doc["total_power"];
+                swarmData.avg_efficiency = doc["avg_efficiency"];
+                swarmData.active_count = doc["active_count"];
+                swarmData.total_count = doc["total_count"];
+
+                // Parse individual miners
+                JsonArray miners = doc["miners"];
+                swarmData.miner_count = 0;
+
+                for (JsonObject miner : miners) {
+                    if (swarmData.miner_count >= 8) break;  // Max 8 miners
+
+                    int i = swarmData.miner_count;
+                    swarmData.miners[i].name = miner["name"].as<String>();
+                    swarmData.miners[i].online = miner["online"];
+                    swarmData.miners[i].hashrate = miner["hashrate"];
+                    swarmData.miners[i].power = miner["power"];
+                    swarmData.miners[i].efficiency = miner["efficiency"];
+                    swarmData.miners[i].asic_temp = miner["asic_temp"];
+                    swarmData.miners[i].vreg_temp = miner["vreg_temp"];
+
+                    swarmData.miner_count++;
+                }
+
+                swarmData.data_valid = true;
+                mSwarmUpdate = millis();
+
+                Serial.printf("Swarm: %.2f GH/s, %d/%d active, %.1f J/TH\n",
+                              swarmData.total_hashrate,
+                              swarmData.active_count,
+                              swarmData.total_count,
+                              swarmData.avg_efficiency);
+
+                doc.clear();
+            } else {
+                Serial.printf("Swarm API error: %d\n", httpCode);
+                swarmData.data_valid = false;
+            }
+
+            http.end();
+        } catch(...) {
+            Serial.println("Swarm HTTP error caught");
+            swarmData.data_valid = false;
+            http.end();
+        }
+    }
+
+    return swarmData;
+}
+
 unsigned long mTriggerUpdate = 0;
 unsigned long initialMillis = millis();
 unsigned long initialTime = 0;
