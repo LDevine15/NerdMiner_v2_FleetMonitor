@@ -700,23 +700,23 @@ void esp32_2432S028R_BitaxeSwarm(unsigned long mElapsed)
       background.setTextColor(TFT_WHITE);
       char hashStr[16];
       snprintf(hashStr, sizeof(hashStr), "%.1f", miner.hashrate);
-      background.drawString(hashStr, 100, yPos + 5, 2);
+      background.drawString(hashStr, 80, yPos + 5, 2);
 
-      // Temperature - color based on value
+      // Temperature - color based on ASIC temp value
       uint16_t tempColor = TFT_GREEN;
       if (miner.asic_temp >= 70) tempColor = TFT_RED;
       else if (miner.asic_temp >= 65) tempColor = TFT_ORANGE;
 
       background.setTextColor(tempColor);
-      char tempStr[16];
-      snprintf(tempStr, sizeof(tempStr), "%dC", (int)miner.asic_temp);
-      background.drawString(tempStr, 160, yPos + 5, 2);
+      char tempStr[24];
+      snprintf(tempStr, sizeof(tempStr), "%dC %dC", (int)miner.asic_temp, (int)miner.vreg_temp);
+      background.drawString(tempStr, 140, yPos + 5, 2);
 
       // Power & Efficiency
       background.setTextColor(TFT_CYAN);
       char powerStr[32];
       snprintf(powerStr, sizeof(powerStr), "%.0fW %.1fJ", miner.power, miner.efficiency);
-      background.drawString(powerStr, 210, yPos + 5, 2);
+      background.drawString(powerStr, 205, yPos + 5, 2);
 
     } else {
       // Offline status
@@ -743,11 +743,27 @@ void esp32_2432S028R_BitaxeSwarm(unsigned long mElapsed)
     background.drawString(moreStr, 5, 5, 2);
   }
 
-  // Large clock on the right
+  // Large clock on the right (12-hour format with AM/PM)
   clock_data clockData = getClockData(mElapsed);
-  background.setTextColor(TFT_WHITE);
-  background.setTextDatum(TR_DATUM);
-  background.drawString(clockData.currentTime, 315, 0, 4);  // Large font size 4
+  if (clockData.currentTime.length() > 0) {
+    // Parse 24-hour time (HH:MM) and convert to 12-hour format
+    int hour = clockData.currentTime.substring(0, 2).toInt();
+    String minutes = clockData.currentTime.substring(3, 5);
+    String ampm = (hour >= 12) ? "PM" : "AM";
+
+    // Convert to 12-hour format
+    if (hour == 0) hour = 12;  // Midnight
+    else if (hour > 12) hour -= 12;  // Afternoon/evening
+
+    char time12h[16];
+    snprintf(time12h, sizeof(time12h), "%d:%s%s", hour, minutes.c_str(), ampm.c_str());
+
+    background.setTextColor(TFT_WHITE);
+    background.setTextDatum(TR_DATUM);
+    background.setFreeFont(FF23);  // Use specific font for better visibility
+    background.setTextSize(1);
+    background.drawString(time12h, 315, 2, GFXFF);  // Adjusted y from 5 to 2 to avoid cutoff
+  }
 
   background.pushSprite(0, 210);
   background.deleteSprite();

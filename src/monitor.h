@@ -35,10 +35,10 @@
 #define getPublicPool "https://public-pool.io:40557/api/client/" // +btcString
 #define UPDATE_POOL_min   1
 
-// Bitaxe Swarm API (set your Python server IP)
+// Bitaxe Swarm API (using mDNS hostname - survives DHCP changes)
 // Example: "http://192.168.1.100:5001/swarm"
-#define getBitaxeSwarm "http://192.168.1.37:5001/swarm"  // Your Mac IP (updated)
-#define UPDATE_SWARM_sec  10  // Update every 10 seconds
+#define getBitaxeSwarm "http://MacBook-Pro-3.local:5001/swarm"  // mDNS hostname
+#define UPDATE_SWARM_sec  5  // Update every 5 seconds
 
 #define NEXT_HALVING_EVENT 1050000 //840000
 #define HALVING_BLOCKS 210000
