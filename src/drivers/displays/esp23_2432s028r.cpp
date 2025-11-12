@@ -603,6 +603,7 @@ void esp32_2432S028R_BTCCandlestick(unsigned long mElapsed)
 void esp32_2432S028R_BitaxeSwarm(unsigned long mElapsed)
 {
   swarm_data swarmData = getBitaxeSwarmData();
+  mining_data minerData = getMiningData(mElapsed);  // Get NerdMiner hashrate
 
   if (!swarmData.data_valid) {
     // No swarm data - show error message
@@ -638,12 +639,20 @@ void esp32_2432S028R_BitaxeSwarm(unsigned long mElapsed)
 
   // Use sprites for flicker-free rendering (like other NerdMiner screens)
 
-  // Top section: Title and BTC price
+  // Top section: Title, NerdMiner hashrate, and BTC price
   createBackgroundSprite(320, 25);
   background.fillSprite(TFT_BLACK);
   background.setTextColor(TFT_CYAN);
   background.setTextDatum(TL_DATUM);
   background.drawString("Bitaxe Swarm", 5, 2, 2);
+
+  // NerdMiner hashrate in the middle
+  background.setTextColor(TFT_GREEN);
+  background.setTextDatum(TC_DATUM);
+  char nerdHashStr[32];
+  snprintf(nerdHashStr, sizeof(nerdHashStr), "%s KH/s", minerData.currentHashRate.c_str());
+  background.drawString(nerdHashStr, 160, 2, 2);
+
   String btcPrice = getBTCprice();
   background.setTextColor(TFT_YELLOW);
   background.setTextDatum(TR_DATUM);
@@ -721,27 +730,26 @@ void esp32_2432S028R_BitaxeSwarm(unsigned long mElapsed)
   background.pushSprite(0, 45);
   background.deleteSprite();
 
-  // More miners indicator (if needed)
+  // Bottom bar with clock and miner count
+  createBackgroundSprite(320, 30);
+  background.fillSprite(TFT_BLACK);
+
+  // Show "+X more" on left if needed
   if (swarmData.miner_count > 6) {
-    createBackgroundSprite(320, 20);
-    background.fillSprite(TFT_BLACK);
     background.setTextColor(TFT_DARKGREY);
-    background.setTextDatum(BC_DATUM);
+    background.setTextDatum(TL_DATUM);
     char moreStr[32];
-    snprintf(moreStr, sizeof(moreStr), "+%d more miners...", swarmData.miner_count - 6);
-    background.drawString(moreStr, 160, 10, 2);
-    background.pushSprite(0, 220);
-    background.deleteSprite();
+    snprintf(moreStr, sizeof(moreStr), "+%d more", swarmData.miner_count - 6);
+    background.drawString(moreStr, 5, 5, 2);
   }
 
-  // Clock in bottom-right corner
+  // Large clock on the right
   clock_data clockData = getClockData(mElapsed);
-  createBackgroundSprite(100, 18);
-  background.fillSprite(TFT_BLACK);
-  background.setTextColor(TFT_DARKGREY);
+  background.setTextColor(TFT_WHITE);
   background.setTextDatum(TR_DATUM);
-  background.drawString(clockData.currentTime, 95, 0, 2);
-  background.pushSprite(220, 222);
+  background.drawString(clockData.currentTime, 315, 0, 4);  // Large font size 4
+
+  background.pushSprite(0, 210);
   background.deleteSprite();
 
   #ifdef DEBUG_MEMORY
