@@ -16,7 +16,7 @@
 #define DEFAULT_POOLPASS	"x"
 #define DEFAULT_WALLETID	"yourBtcAddress"
 #define DEFAULT_POOLPORT	21496
-#define DEFAULT_TIMEZONE	2
+#define DEFAULT_TIMEZONE	-5  // Changed to EST (UTC-5)
 #define DEFAULT_SAVESTATS	false
 #define DEFAULT_INVERTCOLORS	false
 #define DEFAULT_BRIGHTNESS	250

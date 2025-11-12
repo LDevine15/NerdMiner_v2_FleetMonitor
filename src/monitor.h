@@ -18,7 +18,7 @@
 //#define getBTCAPI "https://api.blockchain.com/v3/exchange/tickers/BTC-USDT" -- updates infrequently
 #define getBTCAPI "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
 
-#define UPDATE_BTC_min   1
+#define UPDATE_BTC_min   0.167  // 10 seconds (matches swarm update rate)
 
 //API Block height
 #define getHeightAPI "https://mempool.space/api/blocks/tip/height"
@@ -37,7 +37,7 @@
 
 // Bitaxe Swarm API (set your Python server IP)
 // Example: "http://192.168.1.100:5001/swarm"
-#define getBitaxeSwarm "http://192.168.1.64:5001/swarm"  // Your Mac IP
+#define getBitaxeSwarm "http://192.168.1.37:5001/swarm"  // Your Mac IP (updated)
 #define UPDATE_SWARM_sec  10  // Update every 10 seconds
 
 #define NEXT_HALVING_EVENT 1050000 //840000
@@ -164,6 +164,7 @@ typedef struct {
   bitaxe_miner miners[8];  // Support up to 8 miners
   int miner_count;
   bool data_valid;
+  String timestamp;        // Last update timestamp
 } swarm_data;
 
 void setup_monitor(void);

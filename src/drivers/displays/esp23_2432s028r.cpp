@@ -506,6 +506,11 @@ void esp32_2432S028R_BTCprice(unsigned long mElapsed)
   #endif
 }
 
+// Render timing for flicker-free swarm updates
+static unsigned long lastSwarmRender = 0;
+static bool swarmFirstDraw = true;
+
+/* CHART FUNCTION DISABLED - was causing issues
 // BTC Candlestick Chart Screen - 24h view with 1h candles
 void esp32_2432S028R_BTCCandlestick(unsigned long mElapsed)
 {
@@ -521,10 +526,7 @@ void esp32_2432S028R_BTCCandlestick(unsigned long mElapsed)
   }
 
   // Clear screen
-  if (hasChangedScreen) {
-    tft.fillScreen(TFT_BLACK);
-    hasChangedScreen = false;
-  }
+  tft.fillScreen(TFT_BLACK);
 
   // Chart dimensions
   const int chartX = 10;
@@ -538,14 +540,18 @@ void esp32_2432S028R_BTCCandlestick(unsigned long mElapsed)
   tft.setTextDatum(TC_DATUM);
   tft.drawString("BTC 24H Chart", 160, 5, 2);
 
-  // Draw price range labels
+  // Draw price range labels (aligned with chart)
   tft.setTextColor(TFT_DARKGREY);
-  tft.setTextDatum(TR_DATUM);
+  tft.setTextDatum(TL_DATUM);
   char priceStr[16];
+
+  // Top price label
   snprintf(priceStr, sizeof(priceStr), "$%.0fk", chartData.max_price / 1000);
-  tft.drawString(priceStr, chartX - 2, chartY, 2);
+  tft.drawString(priceStr, 5, chartY, 2);
+
+  // Bottom price label
   snprintf(priceStr, sizeof(priceStr), "$%.0fk", chartData.min_price / 1000);
-  tft.drawString(priceStr, chartX - 2, chartY + chartHeight - 10, 2);
+  tft.drawString(priceStr, 5, chartY + chartHeight - 16, 2);
 
   // Calculate price range for scaling
   float priceRange = chartData.max_price - chartData.min_price;
@@ -591,6 +597,7 @@ void esp32_2432S028R_BTCCandlestick(unsigned long mElapsed)
   printheap();
   #endif
 }
+*/ // END CHART FUNCTION DISABLED
 
 // Bitaxe Swarm Monitor Screen
 void esp32_2432S028R_BitaxeSwarm(unsigned long mElapsed)
@@ -608,89 +615,134 @@ void esp32_2432S028R_BitaxeSwarm(unsigned long mElapsed)
     tft.setTextSize(1);
     tft.drawString("Check Python server at:", 160, 160, 2);
     tft.drawString(String(getBitaxeSwarm), 160, 180, 2);
+    swarmFirstDraw = true;
     return;
   }
 
-  // Clear screen on first draw
-  if (hasChangedScreen) {
-    tft.fillScreen(TFT_BLACK);
-    hasChangedScreen = false;
+  // Only redraw when data changes
+  static String lastTimestamp = "";
+  String currentTimestamp = swarmData.timestamp;
+
+  if (!swarmFirstDraw && (currentTimestamp == lastTimestamp || currentTimestamp.length() == 0)) {
+    // No new data yet, skip redraw to prevent flicker
+    return;
   }
 
-  // Title
-  tft.setTextColor(TFT_CYAN);
-  tft.setTextDatum(TC_DATUM);
-  tft.drawString("Bitaxe Swarm", 160, 2, 2);
+  // Clear screen only on first draw
+  if (swarmFirstDraw) {
+    tft.fillScreen(TFT_BLACK);
+    swarmFirstDraw = false;
+  }
 
-  // Swarm totals (similar to Discord bot output)
-  tft.setTextColor(TFT_ORANGE);
-  tft.setTextDatum(TL_DATUM);
+  lastTimestamp = currentTimestamp;
+
+  // Use sprites for flicker-free rendering (like other NerdMiner screens)
+
+  // Top section: Title and BTC price
+  createBackgroundSprite(320, 25);
+  background.fillSprite(TFT_BLACK);
+  background.setTextColor(TFT_CYAN);
+  background.setTextDatum(TL_DATUM);
+  background.drawString("Bitaxe Swarm", 5, 2, 2);
+  String btcPrice = getBTCprice();
+  background.setTextColor(TFT_YELLOW);
+  background.setTextDatum(TR_DATUM);
+  background.drawString(btcPrice, 315, 2, 2);
+  background.pushSprite(0, 0);
+  background.deleteSprite();
+
+  // Swarm totals section
+  createBackgroundSprite(320, 20);
+  background.fillSprite(TFT_BLACK);
+  background.setTextColor(TFT_ORANGE);
+  background.setTextDatum(TL_DATUM);
   char swarmInfo[64];
   snprintf(swarmInfo, sizeof(swarmInfo), "%.2f TH/s | %d/%d | %.1f J/TH | %.0fW",
-           swarmData.total_hashrate / 1000.0,  // Convert GH/s to TH/s
+           swarmData.total_hashrate / 1000.0,
            swarmData.active_count,
            swarmData.total_count,
            swarmData.avg_efficiency,
            swarmData.total_power);
-  tft.setTextSize(1);
-  tft.drawString(swarmInfo, 5, 20, 2);
+  background.setTextSize(1);
+  background.drawString(swarmInfo, 5, 0, 2);
+  background.pushSprite(0, 20);
+  background.deleteSprite();
 
-  // Draw divider line
+  // Divider line
   tft.drawFastHLine(0, 38, 320, TFT_DARKGREY);
 
-  // Individual miners - show up to 6 on screen
-  int yPos = 45;
+  // Miners section - draw all at once in sprite
   int displayCount = min(swarmData.miner_count, 6);
+  createBackgroundSprite(320, displayCount * 30 + 10);
+  background.fillSprite(TFT_BLACK);
 
+  int yPos = 0;
   for (int i = 0; i < displayCount; i++) {
     bitaxe_miner miner = swarmData.miners[i];
 
     // Miner name
-    tft.setTextDatum(TL_DATUM);
+    background.setTextDatum(TL_DATUM);
     uint16_t nameColor = miner.online ? TFT_GREEN : TFT_RED;
-    tft.setTextColor(nameColor);
-    tft.drawString(miner.name, 5, yPos, 2);
+    background.setTextColor(nameColor);
+    background.drawString(miner.name, 5, yPos + 5, 2);
 
     if (miner.online) {
       // Hashrate
-      tft.setTextColor(TFT_WHITE);
+      background.setTextColor(TFT_WHITE);
       char hashStr[16];
       snprintf(hashStr, sizeof(hashStr), "%.1f", miner.hashrate);
-      tft.drawString(hashStr, 100, yPos, 2);
+      background.drawString(hashStr, 100, yPos + 5, 2);
 
       // Temperature - color based on value
       uint16_t tempColor = TFT_GREEN;
       if (miner.asic_temp >= 70) tempColor = TFT_RED;
       else if (miner.asic_temp >= 65) tempColor = TFT_ORANGE;
 
-      tft.setTextColor(tempColor);
+      background.setTextColor(tempColor);
       char tempStr[16];
       snprintf(tempStr, sizeof(tempStr), "%dC", (int)miner.asic_temp);
-      tft.drawString(tempStr, 160, yPos, 2);
+      background.drawString(tempStr, 160, yPos + 5, 2);
 
       // Power & Efficiency
-      tft.setTextColor(TFT_CYAN);
+      background.setTextColor(TFT_CYAN);
       char powerStr[32];
       snprintf(powerStr, sizeof(powerStr), "%.0fW %.1fJ", miner.power, miner.efficiency);
-      tft.drawString(powerStr, 210, yPos, 2);
+      background.drawString(powerStr, 210, yPos + 5, 2);
 
     } else {
       // Offline status
-      tft.setTextColor(TFT_DARKGREY);
-      tft.drawString("OFFLINE", 100, yPos, 2);
+      background.setTextColor(TFT_DARKGREY);
+      background.drawString("OFFLINE", 100, yPos + 5, 2);
     }
 
     yPos += 30;
   }
 
-  // If more than 6 miners, show indicator
+  background.pushSprite(0, 45);
+  background.deleteSprite();
+
+  // More miners indicator (if needed)
   if (swarmData.miner_count > 6) {
-    tft.setTextColor(TFT_DARKGREY);
-    tft.setTextDatum(BC_DATUM);
+    createBackgroundSprite(320, 20);
+    background.fillSprite(TFT_BLACK);
+    background.setTextColor(TFT_DARKGREY);
+    background.setTextDatum(BC_DATUM);
     char moreStr[32];
     snprintf(moreStr, sizeof(moreStr), "+%d more miners...", swarmData.miner_count - 6);
-    tft.drawString(moreStr, 160, 235, 2);
+    background.drawString(moreStr, 160, 10, 2);
+    background.pushSprite(0, 220);
+    background.deleteSprite();
   }
+
+  // Clock in bottom-right corner
+  clock_data clockData = getClockData(mElapsed);
+  createBackgroundSprite(100, 18);
+  background.fillSprite(TFT_BLACK);
+  background.setTextColor(TFT_DARKGREY);
+  background.setTextDatum(TR_DATUM);
+  background.drawString(clockData.currentTime, 95, 0, 2);
+  background.pushSprite(220, 222);
+  background.deleteSprite();
 
   #ifdef DEBUG_MEMORY
   printheap();
@@ -725,9 +777,9 @@ char currentScreen = 0;
 
 void esp32_2432S028R_DoLedStuff(unsigned long frame)
 {
-  unsigned long currentMillis = millis();    
+  unsigned long currentMillis = millis();
   // / Check the touch coordinates 110x185 210x240
-  if (currentMillis - previousTouchMillis >= 500)
+  if (currentMillis - previousTouchMillis >= 200)  // Reduced from 500ms for faster response
     { 
       int16_t t_x , t_y;  // To store the touch coordinates
       bool pressed = touch.getXY(t_x, t_y);
@@ -761,7 +813,11 @@ void esp32_2432S028R_DoLedStuff(unsigned long frame)
       previousTouchMillis = currentMillis;
     }
 
-    if (currentScreen != currentDisplayDriver->current_cyclic_screen) hasChangedScreen ^= true;
+    if (currentScreen != currentDisplayDriver->current_cyclic_screen) {
+      hasChangedScreen ^= true;
+      // Reset render timer when changing screens
+      swarmFirstDraw = true;
+    }
     currentScreen = currentDisplayDriver->current_cyclic_screen;
 
   switch (mMonitor.NerdStatus)
@@ -794,8 +850,8 @@ void esp32_2432S028R_DoLedStuff(unsigned long frame)
 
 }
 
-// Custom screens: Miner, Clock, BTC Price, BTC Chart, Bitaxe Swarm
-CyclicScreenFunction esp32_2432S028RCyclicScreens[] = {esp32_2432S028R_MinerScreen, esp32_2432S028R_ClockScreen, esp32_2432S028R_BTCprice, esp32_2432S028R_BTCCandlestick, esp32_2432S028R_BitaxeSwarm};
+// Custom screens: Miner, Clock, BTC Price, Bitaxe Swarm (removed chart - was buggy)
+CyclicScreenFunction esp32_2432S028RCyclicScreens[] = {esp32_2432S028R_MinerScreen, esp32_2432S028R_ClockScreen, esp32_2432S028R_BTCprice, esp32_2432S028R_BitaxeSwarm};
 
 DisplayDriver esp32_2432S028RDriver = {
     esp32_2432S028R_Init,

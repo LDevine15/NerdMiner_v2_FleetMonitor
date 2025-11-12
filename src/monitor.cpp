@@ -194,13 +194,28 @@ String getBTCprice(void){
         }
     }  
   
+  // Format price with commas
   static char price_buffer[16];
-  snprintf(price_buffer, sizeof(price_buffer), "$%u", bitcoin_price);
+  if (bitcoin_price >= 1000000) {
+    // Millions: $1,234,567
+    snprintf(price_buffer, sizeof(price_buffer), "$%u,%03u,%03u",
+             bitcoin_price / 1000000,
+             (bitcoin_price / 1000) % 1000,
+             bitcoin_price % 1000);
+  } else if (bitcoin_price >= 1000) {
+    // Thousands: $98,450
+    snprintf(price_buffer, sizeof(price_buffer), "$%u,%03u",
+             bitcoin_price / 1000,
+             bitcoin_price % 1000);
+  } else {
+    // Less than 1000: $450
+    snprintf(price_buffer, sizeof(price_buffer), "$%u", bitcoin_price);
+  }
   return String(price_buffer);
 }
 
-// Binance API for candlestick data
-#define getBinanceKlines "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=24"
+// CoinGecko API for candlestick data (more permissive than Binance)
+#define getCoinGeckoOHLC "https://api.coingecko.com/api/v3/coins/bitcoin/ohlc?vs_currency=usd&days=1"
 #define UPDATE_CHART_min 5  // Update chart every 5 minutes
 
 unsigned long mChartUpdate = 0;
@@ -219,22 +234,31 @@ btc_chart_data getBTCChartData(void) {
         http.setTimeout(15000);  // Longer timeout for larger payload
 
         try {
-            http.begin(getBinanceKlines);
+            Serial.println("Fetching BTC chart from CoinGecko...");
+            http.begin(getCoinGeckoOHLC);
             int httpCode = http.GET();
+            Serial.printf("CoinGecko HTTP response: %d\n", httpCode);
 
             if (httpCode == HTTP_CODE_OK) {
                 String payload = http.getString();
+                Serial.printf("Payload size: %d bytes\n", payload.length());
 
-                // Binance returns array of arrays
-                // [timestamp, open, high, low, close, volume, ...]
+                // CoinGecko returns array of arrays
+                // [timestamp, open, high, low, close]
                 DynamicJsonDocument doc(8192);  // Need larger buffer for 24 candles
-                deserializeJson(doc, payload);
+                DeserializationError error = deserializeJson(doc, payload);
+
+                if (error) {
+                    Serial.printf("JSON parse error: %s\n", error.c_str());
+                    http.end();
+                    return chartData;
+                }
 
                 chartData.count = 0;
                 chartData.min_price = 999999;
                 chartData.max_price = 0;
 
-                // Parse up to 24 candles
+                // Parse up to 24 candles (CoinGecko returns ~24-30 candles for 1 day)
                 JsonArray array = doc.as<JsonArray>();
                 int i = 0;
                 for (JsonArray candle : array) {
@@ -265,12 +289,12 @@ btc_chart_data getBTCChartData(void) {
                 doc.clear();
                 mChartUpdate = millis();
             } else {
-                Serial.printf("Binance API error: %d\n", httpCode);
+                Serial.printf("CoinGecko API error: %d\n", httpCode);
             }
 
             http.end();
         } catch(...) {
-            Serial.println("BTC chart HTTP error caught");
+            Serial.println("CoinGecko HTTP error caught");
             http.end();
         }
     }
@@ -329,6 +353,13 @@ swarm_data getBitaxeSwarmData(void) {
                     swarmData.miners[i].vreg_temp = miner["vreg_temp"];
 
                     swarmData.miner_count++;
+                }
+
+                // Get timestamp if available
+                if (doc.containsKey("timestamp")) {
+                    swarmData.timestamp = doc["timestamp"].as<String>();
+                } else {
+                    swarmData.timestamp = String(millis());
                 }
 
                 swarmData.data_valid = true;
