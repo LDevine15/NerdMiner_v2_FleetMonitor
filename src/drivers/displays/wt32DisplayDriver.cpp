@@ -306,34 +306,41 @@ void wt32Display_NoScreen(unsigned long mElapsed)
                 data.completedShares.c_str(), data.totalKHashes.c_str(), data.currentHashRate.c_str());
   //Serial.printf(">>> Temperature: %s\n", data.temp.c_str());
 
-  lv_label_set_text(ui_lblhashrate, data.currentHashRate.c_str());
-  lv_bar_set_value(ui_barhashrate, data.currentHashRate.toInt(), LV_ANIM_ON);
-  lv_label_set_text(ui_lblvalid, data.valids.c_str());
-  lv_label_set_text(ui_lbltemplates, data.templates.c_str());
-  lv_label_set_text(ui_lbltotalhashrate, data.totalKHashes.c_str());
-  lv_label_set_text(ui_lblbestdiff, data.bestDiff.c_str());
-  lv_label_set_text(ui_lblshares32, data.completedShares.c_str());
-  lv_label_set_text(ui_lblclock, data.timeMining.c_str());
-  lv_label_set_text(ui_lbltemperature, data.temp.c_str());
+  // HomeScreen labels - commented out since HomeScreen is disabled
+  // lv_label_set_text(ui_lblhashrate, data.currentHashRate.c_str());
+  // lv_bar_set_value(ui_barhashrate, data.currentHashRate.toInt(), LV_ANIM_ON);
+  // lv_label_set_text(ui_lblvalid, data.valids.c_str());
+  // lv_label_set_text(ui_lbltemplates, data.templates.c_str());
+  // lv_label_set_text(ui_lbltotalhashrate, data.totalKHashes.c_str());
+  // lv_label_set_text(ui_lblbestdiff, data.bestDiff.c_str());
+  // lv_label_set_text(ui_lblshares32, data.completedShares.c_str());
+  // lv_label_set_text(ui_lblclock, data.timeMining.c_str());
+  // lv_label_set_text(ui_lbltemperature, data.temp.c_str());
 
-  lv_label_set_text(ui_lblclock2, data.currentTime.c_str());
+  // ClockScreen labels - commented out since ClockScreen is disabled
+  // lv_label_set_text(ui_lblclock2, data.currentTime.c_str());
 
-  lv_label_set_text(ui_lblIp, WiFi.localIP().toString().c_str());
-  lv_label_set_text(ui_lblAddress, String(Settings.BtcWallet).c_str());
+  // SettingsScreen labels - commented out since SettingsScreen is disabled
+  // lv_label_set_text(ui_lblIp, WiFi.localIP().toString().c_str());
+  // lv_label_set_text(ui_lblAddress, String(Settings.BtcWallet).c_str());
 
   if(millis() - ulTime > 1000 * 60) {
     ulTime = millis();
-  
+
     coin_data cdata = getCoinData(mElapsed);
 
+    // StatsScreen labels - keep these (StatsScreen is the active bitaxe swarm screen)
     lv_label_set_text(ui_lblPrice, cdata.btcPrice.c_str());
     lv_label_set_text(ui_lblGlobalHashrate, cdata.globalHashRate.c_str());
     lv_label_set_text(ui_lblDifficulty, cdata.netwrokDifficulty.c_str());
-    lv_bar_set_value(ui_barhalving, cdata.progressPercent, LV_ANIM_ON);
-    lv_label_set_text(ui_lblHeight2, cdata.blockHeight.c_str());
+
+    // ClockScreen labels - commented out since ClockScreen is disabled
+    // lv_bar_set_value(ui_barhalving, cdata.progressPercent, LV_ANIM_ON);
+    // lv_label_set_text(ui_lblHeight2, cdata.blockHeight.c_str());
 
     pool_data pdata = getPoolData();
 
+    // StatsScreen labels - keep these (bitaxe swarm data)
     lv_label_set_text(ui_lblWorkers, String(pdata.workersCount).c_str());
     lv_label_set_text(ui_lblMaxDifficulty, pdata.bestDifficulty.c_str());
     lv_label_set_text(ui_lblTotHashrate, pdata.workersHash.c_str());
@@ -345,14 +352,17 @@ void wt32Display_LoadingScreen(void)
   Serial.println("Initializing...");
   Serial.print("Firmware Version: ");
   Serial.println(AUTO_VERSION);
+
+  // SplashScreen labels - keep these
   lv_label_set_text(ui_lblssid, "HanSoloAP");
   lv_label_set_text(ui_lblpassword, "MineYourCoins");
   lv_label_set_text(ui_lblversion, AUTO_VERSION);
-  lv_label_set_text(ui_lblversion2, AUTO_VERSION);
 
-  lv_label_set_text(ui_lblPool, (String(Settings.PoolAddress)+":"+String(Settings.PoolPort)).c_str());
+  // SettingsScreen label - commented out since SettingsScreen is disabled
+  // lv_label_set_text(ui_lblversion2, AUTO_VERSION);
+  // lv_label_set_text(ui_lblPool, (String(Settings.PoolAddress)+":"+String(Settings.PoolPort)).c_str());
 
-  _ui_screen_change(&ui_HomeScreen, LV_SCR_LOAD_ANIM_FADE_ON, 2000, 0, &ui_HomeScreen_screen_init);
+  _ui_screen_change(&ui_StatsScreen, LV_SCR_LOAD_ANIM_FADE_ON, 2000, 0, &ui_StatsScreen_screen_init);
 }
 
 void wt32Display_SetupScreen(void)

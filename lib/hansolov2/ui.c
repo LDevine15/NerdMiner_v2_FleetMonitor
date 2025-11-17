@@ -169,6 +169,8 @@ const lv_img_dsc_t * ui_imgset_2063710799[1] = {&ui_img_1552732429};
 ///////////////////// ANIMATIONS ////////////////////
 
 ///////////////////// FUNCTIONS ////////////////////
+// HomeScreen navigation events - commented out since HomeScreen is disabled
+/*
 void ui_event_btnconfirm(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -204,7 +206,10 @@ void ui_event_btnpre(lv_event_t * e)
         _ui_screen_change(&ui_HomeScreen, LV_SCR_LOAD_ANIM_FADE_ON, 500, 0, &ui_HomeScreen_screen_init);
     }
 }
+*/
 
+// StatsScreen navigation events - commented out navigation to disabled screens
+/*
 void ui_event_btnpre2(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -240,7 +245,10 @@ void ui_event_btndelete2(lv_event_t * e)
         _ui_screen_change(&ui_SettingsScreen, LV_SCR_LOAD_ANIM_FADE_ON, 500, 0, &ui_SettingsScreen_screen_init);
     }
 }
+*/
 
+// ClockScreen navigation events - commented out since ClockScreen is disabled
+/*
 void ui_event_btnpre3(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -276,7 +284,10 @@ void ui_event_btndelete3(lv_event_t * e)
         _ui_screen_change(&ui_SettingsScreen, LV_SCR_LOAD_ANIM_FADE_ON, 500, 0, &ui_SettingsScreen_screen_init);
     }
 }
+*/
 
+// SettingsScreen navigation events - commented out since SettingsScreen is disabled
+/*
 void ui_event_btnpre4(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -312,6 +323,7 @@ void ui_event_btndelete4(lv_event_t * e)
         _ui_screen_change(&ui_SettingsScreen, LV_SCR_LOAD_ANIM_FADE_ON, 500, 0, &ui_SettingsScreen_screen_init);
     }
 }
+*/
 
 void ui_event_btndelete1(lv_event_t * e)
 {
@@ -331,10 +343,10 @@ void ui_init(void)
                                                true, LV_FONT_DEFAULT);
     lv_disp_set_theme(dispp, theme);
     ui_SplashScreen_screen_init();
-    ui_HomeScreen_screen_init();
+    // ui_HomeScreen_screen_init();
     ui_StatsScreen_screen_init();
-    ui_ClockScreen_screen_init();
-    ui_SettingsScreen_screen_init();
+    // ui_ClockScreen_screen_init();
+    // ui_SettingsScreen_screen_init();
     ui____initial_actions0 = lv_obj_create(NULL);
     lv_disp_load_scr(ui_SplashScreen);
 }
