@@ -35,9 +35,8 @@
 #define getPublicPool "https://public-pool.io:40557/api/client/" // +btcString
 #define UPDATE_POOL_min   1
 
-// Bitaxe Swarm API (using mDNS hostname - survives DHCP changes)
-// Example: "http://192.168.1.100:5001/swarm"
-#define getBitaxeSwarm "http://MacBook-Pro-3.local:5001/swarm"  // mDNS hostname
+// Bitaxe Swarm API - using mDNS hostname (works with DHCP)
+#define getBitaxeSwarm "http://raspberrypi.local:5001/swarm"
 #define UPDATE_SWARM_sec  5  // Update every 5 seconds
 
 #define NEXT_HALVING_EVENT 1050000 //840000

@@ -304,20 +304,37 @@ btc_chart_data getBTCChartData(void) {
 
 // Bitaxe Swarm API - fetch data from Python server
 unsigned long mSwarmUpdate = 0;
+unsigned long mSwarmLastSuccess = 0;  // Track last successful API call
+int swarmFailureCount = 0;             // Count consecutive failures
 swarm_data swarmData;
+
+// Number of consecutive failures before showing offline (5 failures * 5 sec = 25 seconds)
+#define SWARM_MAX_FAILURES 5
+// Max age of data before considered stale (60 seconds)
+#define SWARM_DATA_MAX_AGE_MS 60000
 
 swarm_data getBitaxeSwarmData(void) {
 
-    // Update swarm data every 10 seconds
+    // Update swarm data every 5 seconds
     if((mSwarmUpdate == 0) || (millis() - mSwarmUpdate > UPDATE_SWARM_sec * 1000)){
 
+        // Always update the attempt timestamp
+        mSwarmUpdate = millis();
+
         if (WiFi.status() != WL_CONNECTED) {
-            swarmData.data_valid = false;
-            return swarmData;  // Return cached data if offline
+            swarmFailureCount++;
+            Serial.printf("Swarm: WiFi not connected (failure %d/%d)\n", swarmFailureCount, SWARM_MAX_FAILURES);
+
+            // Only mark invalid after multiple failures AND data is stale
+            if (swarmFailureCount >= SWARM_MAX_FAILURES &&
+                (mSwarmLastSuccess == 0 || millis() - mSwarmLastSuccess > SWARM_DATA_MAX_AGE_MS)) {
+                swarmData.data_valid = false;
+            }
+            return swarmData;  // Return cached data
         }
 
         HTTPClient http;
-        http.setTimeout(5000);
+        http.setTimeout(10000);  // 10 seconds - more time for mDNS resolution
 
         try {
             http.begin(getBitaxeSwarm);
@@ -362,8 +379,10 @@ swarm_data getBitaxeSwarmData(void) {
                     swarmData.timestamp = String(millis());
                 }
 
+                // Success - reset failure counter and mark data valid
                 swarmData.data_valid = true;
-                mSwarmUpdate = millis();
+                swarmFailureCount = 0;
+                mSwarmLastSuccess = millis();
 
                 Serial.printf("Swarm: %.2f GH/s, %d/%d active, %.1f J/TH\n",
                               swarmData.total_hashrate,
@@ -373,14 +392,26 @@ swarm_data getBitaxeSwarmData(void) {
 
                 doc.clear();
             } else {
-                Serial.printf("Swarm API error: %d\n", httpCode);
-                swarmData.data_valid = false;
+                swarmFailureCount++;
+                Serial.printf("Swarm API error: %d (failure %d/%d)\n", httpCode, swarmFailureCount, SWARM_MAX_FAILURES);
+
+                // Only mark invalid after multiple failures AND data is stale
+                if (swarmFailureCount >= SWARM_MAX_FAILURES &&
+                    (mSwarmLastSuccess == 0 || millis() - mSwarmLastSuccess > SWARM_DATA_MAX_AGE_MS)) {
+                    swarmData.data_valid = false;
+                }
             }
 
             http.end();
         } catch(...) {
-            Serial.println("Swarm HTTP error caught");
-            swarmData.data_valid = false;
+            swarmFailureCount++;
+            Serial.printf("Swarm HTTP error caught (failure %d/%d)\n", swarmFailureCount, SWARM_MAX_FAILURES);
+
+            // Only mark invalid after multiple failures AND data is stale
+            if (swarmFailureCount >= SWARM_MAX_FAILURES &&
+                (mSwarmLastSuccess == 0 || millis() - mSwarmLastSuccess > SWARM_DATA_MAX_AGE_MS)) {
+                swarmData.data_valid = false;
+            }
             http.end();
         }
     }

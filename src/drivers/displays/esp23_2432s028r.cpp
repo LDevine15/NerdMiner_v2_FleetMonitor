@@ -599,11 +599,18 @@ void esp32_2432S028R_BTCCandlestick(unsigned long mElapsed)
 }
 */ // END CHART FUNCTION DISABLED
 
+// Track stale data state for visual indicator
+extern unsigned long mSwarmLastSuccess;
+extern int swarmFailureCount;
+
 // Bitaxe Swarm Monitor Screen
 void esp32_2432S028R_BitaxeSwarm(unsigned long mElapsed)
 {
   swarm_data swarmData = getBitaxeSwarmData();
   mining_data minerData = getMiningData(mElapsed);  // Get NerdMiner hashrate
+
+  // Check if we're showing stale cached data (had failures but still showing old data)
+  bool showingCachedData = (swarmFailureCount > 0 && swarmData.data_valid);
 
   if (!swarmData.data_valid) {
     // No swarm data - show error message
@@ -620,14 +627,20 @@ void esp32_2432S028R_BitaxeSwarm(unsigned long mElapsed)
     return;
   }
 
-  // Only redraw when data changes
+  // Only redraw when data changes or cached state changes
   static String lastTimestamp = "";
+  static bool lastCachedState = false;
   String currentTimestamp = swarmData.timestamp;
 
-  if (!swarmFirstDraw && (currentTimestamp == lastTimestamp || currentTimestamp.length() == 0)) {
-    // No new data yet, skip redraw to prevent flicker
+  bool cachedStateChanged = (showingCachedData != lastCachedState);
+
+  if (!swarmFirstDraw && !cachedStateChanged &&
+      (currentTimestamp == lastTimestamp || currentTimestamp.length() == 0)) {
+    // No new data and no state change, skip redraw to prevent flicker
     return;
   }
+
+  lastCachedState = showingCachedData;
 
   // Clear screen only on first draw
   if (swarmFirstDraw) {
@@ -642,9 +655,11 @@ void esp32_2432S028R_BitaxeSwarm(unsigned long mElapsed)
   // Top section: Title, NerdMiner hashrate, and BTC price
   createBackgroundSprite(320, 25);
   background.fillSprite(TFT_BLACK);
-  background.setTextColor(TFT_CYAN);
+
+  // Show "Bitaxe Swarm" title - yellow if showing cached data, cyan if fresh
+  background.setTextColor(showingCachedData ? TFT_YELLOW : TFT_CYAN);
   background.setTextDatum(TL_DATUM);
-  background.drawString("Bitaxe Swarm", 5, 2, 2);
+  background.drawString(showingCachedData ? "Swarm (cached)" : "Bitaxe Swarm", 5, 2, 2);
 
   // NerdMiner hashrate in the middle
   background.setTextColor(TFT_GREEN);
