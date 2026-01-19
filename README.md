@@ -9,10 +9,9 @@ A fork of [NerdMiner_v2](https://github.com/BitMaker-hub/NerdMiner_v2) modified 
 ## Features
 
 - **Bitaxe Swarm Monitor** - View all your miners at a glance (up to 6-7 on screen)
-- **BTC Candlestick Chart** - 24-hour price action from Binance
 - **Live Stats** - Hashrate, temps, power, efficiency per miner
 - **Color-coded Status** - Green/red for online/offline, temp warnings
-- **Touch Controls** - Navigate screens, rotate display, toggle backlight
+- **Touch Controls** - Navigate screens (if enabled), rotate display, toggle backlight
 
 ## Requirements
 
