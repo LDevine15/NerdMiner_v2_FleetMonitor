@@ -361,7 +361,10 @@ swarm_data getBitaxeSwarmData(void) {
                     if (swarmData.miner_count >= 8) break;  // Max 8 miners
 
                     int i = swarmData.miner_count;
-                    swarmData.miners[i].name = miner["name"].as<String>();
+                    // Use fixed buffer to avoid String fragmentation
+                    const char* minerName = miner["name"] | "unknown";
+                    strncpy(swarmData.miners[i].name, minerName, sizeof(swarmData.miners[i].name) - 1);
+                    swarmData.miners[i].name[sizeof(swarmData.miners[i].name) - 1] = '\0';
                     swarmData.miners[i].online = miner["online"];
                     swarmData.miners[i].hashrate = miner["hashrate"];
                     swarmData.miners[i].power = miner["power"];
@@ -372,11 +375,13 @@ swarm_data getBitaxeSwarmData(void) {
                     swarmData.miner_count++;
                 }
 
-                // Get timestamp if available
+                // Get timestamp if available - use fixed buffer
                 if (doc.containsKey("timestamp")) {
-                    swarmData.timestamp = doc["timestamp"].as<String>();
+                    const char* ts = doc["timestamp"] | "";
+                    strncpy(swarmData.timestamp, ts, sizeof(swarmData.timestamp) - 1);
+                    swarmData.timestamp[sizeof(swarmData.timestamp) - 1] = '\0';
                 } else {
-                    swarmData.timestamp = String(millis());
+                    snprintf(swarmData.timestamp, sizeof(swarmData.timestamp), "%lu", millis());
                 }
 
                 // Success - reset failure counter and mark data valid
@@ -384,11 +389,20 @@ swarm_data getBitaxeSwarmData(void) {
                 swarmFailureCount = 0;
                 mSwarmLastSuccess = millis();
 
-                Serial.printf("Swarm: %.2f GH/s, %d/%d active, %.1f J/TH\n",
+                Serial.printf("Swarm: %.2f GH/s, %d/%d active, %.1f J/TH, %d miners parsed\n",
                               swarmData.total_hashrate,
                               swarmData.active_count,
                               swarmData.total_count,
-                              swarmData.avg_efficiency);
+                              swarmData.avg_efficiency,
+                              swarmData.miner_count);
+
+                // Debug: print first miner details
+                if (swarmData.miner_count > 0) {
+                    Serial.printf("  Miner[0]: %s, %.1f GH/s, %.1fC\n",
+                                  swarmData.miners[0].name,
+                                  swarmData.miners[0].hashrate,
+                                  swarmData.miners[0].asic_temp);
+                }
 
                 doc.clear();
             } else {

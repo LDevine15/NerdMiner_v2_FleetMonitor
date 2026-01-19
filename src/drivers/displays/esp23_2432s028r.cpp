@@ -33,6 +33,7 @@ extern DisplayDriver *currentDisplayDriver;
 extern bool invertColors; 
 extern TSettings Settings;
 bool hasChangedScreen = true;
+static bool swarmFirstDraw = true;  // For swarm screen full redraw
 
 void getChipInfo(void){
   Serial.print("Chip: ");
@@ -122,7 +123,9 @@ void esp32_2432S028R_AlternateScreenState(void)
 void esp32_2432S028R_AlternateRotation(void)
 {
   tft.setRotation( flipRotation(tft.getRotation()) );
+  tft.fillScreen(TFT_BLACK);  // Clear screen to avoid artifacts
   hasChangedScreen = true;
+  swarmFirstDraw = true;  // Force full redraw of swarm screen
 }
 
 bool bottomScreenBlue = true;
@@ -508,7 +511,6 @@ void esp32_2432S028R_BTCprice(unsigned long mElapsed)
 
 // Render timing for flicker-free swarm updates
 static unsigned long lastSwarmRender = 0;
-static bool swarmFirstDraw = true;
 
 /* CHART FUNCTION DISABLED - was causing issues
 // BTC Candlestick Chart Screen - 24h view with 1h candles
@@ -628,17 +630,19 @@ void esp32_2432S028R_BitaxeSwarm(unsigned long mElapsed)
   }
 
   // Only redraw when data changes or cached state changes
-  static String lastTimestamp = "";
+  static char lastTimestamp[20] = "";
   static bool lastCachedState = false;
-  String currentTimestamp = swarmData.timestamp;
 
   bool cachedStateChanged = (showingCachedData != lastCachedState);
 
   if (!swarmFirstDraw && !cachedStateChanged &&
-      (currentTimestamp == lastTimestamp || currentTimestamp.length() == 0)) {
+      (strcmp(swarmData.timestamp, lastTimestamp) == 0 || strlen(swarmData.timestamp) == 0)) {
     // No new data and no state change, skip redraw to prevent flicker
+    Serial.printf("Swarm display: skipping redraw (ts=%s, last=%s)\n", swarmData.timestamp, lastTimestamp);
     return;
   }
+
+  Serial.printf("Swarm display: rendering %d miners (ts=%s)\n", swarmData.miner_count, swarmData.timestamp);
 
   lastCachedState = showingCachedData;
 
@@ -648,7 +652,8 @@ void esp32_2432S028R_BitaxeSwarm(unsigned long mElapsed)
     swarmFirstDraw = false;
   }
 
-  lastTimestamp = currentTimestamp;
+  strncpy(lastTimestamp, swarmData.timestamp, sizeof(lastTimestamp) - 1);
+  lastTimestamp[sizeof(lastTimestamp) - 1] = '\0';
 
   // Use sprites for flicker-free rendering (like other NerdMiner screens)
 
@@ -695,27 +700,35 @@ void esp32_2432S028R_BitaxeSwarm(unsigned long mElapsed)
   // Divider line
   tft.drawFastHLine(0, 38, 320, TFT_DARKGREY);
 
-  // Miners section - draw all at once in sprite
+  // Miners section - draw each miner with small sprite to avoid memory issues
   int displayCount = min(swarmData.miner_count, 6);
-  createBackgroundSprite(320, displayCount * 30 + 10);
-  background.fillSprite(TFT_BLACK);
 
-  int yPos = 0;
+  // Debug: print miner count
+  Serial.printf("Swarm display: %d miners to render\n", displayCount);
+
   for (int i = 0; i < displayCount; i++) {
     bitaxe_miner miner = swarmData.miners[i];
+    int yPos = 45 + (i * 28);
+
+    // Small sprite per miner row (much less memory)
+    if (!createBackgroundSprite(320, 26)) {
+      Serial.println("Sprite alloc failed for miner row");
+      continue;
+    }
+    background.fillSprite(TFT_BLACK);
 
     // Miner name
     background.setTextDatum(TL_DATUM);
     uint16_t nameColor = miner.online ? TFT_GREEN : TFT_RED;
     background.setTextColor(nameColor);
-    background.drawString(miner.name, 5, yPos + 5, 2);
+    background.drawString(miner.name, 5, 3, 2);
 
     if (miner.online) {
       // Hashrate
       background.setTextColor(TFT_WHITE);
       char hashStr[16];
       snprintf(hashStr, sizeof(hashStr), "%.1f", miner.hashrate);
-      background.drawString(hashStr, 80, yPos + 5, 2);
+      background.drawString(hashStr, 80, 3, 2);
 
       // Temperature - color based on ASIC temp value
       uint16_t tempColor = TFT_GREEN;
@@ -725,25 +738,23 @@ void esp32_2432S028R_BitaxeSwarm(unsigned long mElapsed)
       background.setTextColor(tempColor);
       char tempStr[24];
       snprintf(tempStr, sizeof(tempStr), "%dC %dC", (int)miner.asic_temp, (int)miner.vreg_temp);
-      background.drawString(tempStr, 140, yPos + 5, 2);
+      background.drawString(tempStr, 140, 3, 2);
 
       // Power & Efficiency
       background.setTextColor(TFT_CYAN);
       char powerStr[32];
       snprintf(powerStr, sizeof(powerStr), "%.0fW %.1fJ", miner.power, miner.efficiency);
-      background.drawString(powerStr, 205, yPos + 5, 2);
+      background.drawString(powerStr, 205, 3, 2);
 
     } else {
       // Offline status
       background.setTextColor(TFT_DARKGREY);
-      background.drawString("OFFLINE", 100, yPos + 5, 2);
+      background.drawString("OFFLINE", 100, 3, 2);
     }
 
-    yPos += 30;
+    background.pushSprite(0, yPos);
+    background.deleteSprite();
   }
-
-  background.pushSprite(0, 45);
-  background.deleteSprite();
 
   // Bottom bar with clock and miner count
   createBackgroundSprite(320, 30);
@@ -838,13 +849,10 @@ void esp32_2432S028R_DoLedStuff(unsigned long frame)
           else
             if (t_x > 160) {
               // next screen
-             // Serial.printf("Next screen touch( x:%d y:%d )\n", t_x, t_y);
               currentDisplayDriver->current_cyclic_screen = (currentDisplayDriver->current_cyclic_screen + 1) % currentDisplayDriver->num_cyclic_screens;
             } else if (t_x < 160)
             {
-              // Previus screen
-             // Serial.printf("Previus screen touch( x:%d y:%d )\n", t_x, t_y);
-              /* Serial.println(currentDisplayDriver->current_cyclic_screen); */
+              // Previous screen
               currentDisplayDriver->current_cyclic_screen = currentDisplayDriver->current_cyclic_screen - 1;
               if (currentDisplayDriver->current_cyclic_screen<0) currentDisplayDriver->current_cyclic_screen = currentDisplayDriver->num_cyclic_screens - 1;
             }
@@ -889,8 +897,8 @@ void esp32_2432S028R_DoLedStuff(unsigned long frame)
 
 }
 
-// Custom screens: Miner, Clock, BTC Price, Bitaxe Swarm (removed chart - was buggy)
-CyclicScreenFunction esp32_2432S028RCyclicScreens[] = {esp32_2432S028R_MinerScreen, esp32_2432S028R_ClockScreen, esp32_2432S028R_BTCprice, esp32_2432S028R_BitaxeSwarm};
+// Only Bitaxe Swarm screen - removed default NerdMiner screens
+CyclicScreenFunction esp32_2432S028RCyclicScreens[] = {esp32_2432S028R_BitaxeSwarm};
 
 DisplayDriver esp32_2432S028RDriver = {
     esp32_2432S028R_Init,

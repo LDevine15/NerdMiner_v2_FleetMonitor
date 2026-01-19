@@ -145,7 +145,7 @@ typedef struct {
 
 // Bitaxe swarm data from Python API
 typedef struct {
-  String name;
+  char name[24];      // Fixed buffer - no dynamic allocation
   bool online;
   float hashrate;     // GH/s
   float power;        // W
@@ -163,7 +163,7 @@ typedef struct {
   bitaxe_miner miners[8];  // Support up to 8 miners
   int miner_count;
   bool data_valid;
-  String timestamp;        // Last update timestamp
+  char timestamp[20];      // Fixed buffer - no dynamic allocation
 } swarm_data;
 
 void setup_monitor(void);
