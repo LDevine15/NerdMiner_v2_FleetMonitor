@@ -37,7 +37,7 @@ This project requires **two repositories** to work together:
 git clone https://github.com/LDevine15/bitaxe-monitor.git
 
 # Clone this firmware repo
-git clone https://github.com/YOUR_USERNAME/nerdminer_v2_fleetmonitor.git
+git clone https://github.com/Ldevine15/nerdminer_v2_fleetmonitor.git
 ```
 
 ### Step 2: Configure bitaxe-monitor
