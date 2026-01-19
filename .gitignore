@@ -1,10 +1,20 @@
+# IDE settings
 .idea/
 .pio
-.vscode
-.vs
+.vscode/
+.vs/
 *.sln
 *.vcxproj*
+
+# Build artifacts
+bin/
+firmware/
+
+# Logs
+logs/
 NerdMinerLog.txt
-bin/0x10000_firmware.bin
-logs
+*.log
+
+# Other
 boards/ESP32_wroom_guide.md
+.DS_Store
