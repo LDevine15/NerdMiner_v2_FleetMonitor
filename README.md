@@ -4,7 +4,7 @@
 
 A fork of [NerdMiner_v2](https://github.com/BitMaker-hub/NerdMiner_v2) modified to display real-time stats from your Bitaxe swarm on an ESP32-2432S028R touchscreen.
 
-![image](images/bgNerdMinerV2.png)
+![image](images/fleet-monitor.png)
 
 ## Features
 
